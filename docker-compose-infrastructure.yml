@@ -1,0 +1,325 @@
+name: graphrag-gateway
+# version: '3.8'
+
+# ========================================
+# 共通インフラストラクチャ層 (Firecrawl 究極安定版)
+# ========================================
+
+services:
+  # ========================================
+  # Redis / Neo4j / FalkorDB / Kuzu / TiDB / Qdrant
+  # （これらは変更なし）
+  # ========================================
+  redis:
+    image: redis:latest
+    container_name: graphrag-redis
+    ports:
+      - "16379:6379"
+    volumes:
+      - redis-data:/data
+    command: >
+      redis-server
+      --bind 0.0.0.0
+      --protected-mode yes
+      --requirepass "${REDIS_PASSWORD:-RedisPass@0302}"
+      --maxmemory 768mb
+      --maxmemory-policy volatile-lru
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-RedisPass@0302}
+      - REDISCLI_AUTH=${REDIS_PASSWORD:-RedisPass@0302}
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-RedisPass@0302}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - graphrag_shared_network
+
+  neo4j:
+    image: neo4j:latest
+    container_name: graphrag-neo4j
+    hostname: graphrag-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-p@ssw0rd}
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      # 🔥 [追加] Neo4jの内部メモリ設定 (ヒープ:8GB, ページキャッシュ:12GB)
+      - NEO4J_dbms_memory_heap_initial__size=8G
+      - NEO4J_dbms_memory_heap_max__size=8G
+      - NEO4J_dbms_memory_pagecache_size=12G
+    volumes:
+      # ▼ 【ローカル保存】現在のWindows側の ./data フォルダに直接保存する設定
+      - ./data/neo4j/data:/data
+      - ./data/neo4j/logs:/logs
+
+      # ▼ 【NAS保存用】NASをネットワークドライブ（例: Z:）として割り当てている場合
+      # - Z:/Ariadne_Backup/neo4j/data:/data
+      # - Z:/Ariadne_Backup/neo4j/logs:/logs
+
+      # ▼ 【NAS保存用】NASのIPアドレスを直接指定する場合
+      # - //192.168.x.x/shared_folder/neo4j/data:/data
+      # - //192.168.x.x/shared_folder/neo4j/logs:/logs
+
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --spider -q http://localhost:7474 || exit 1" ]
+      interval: 20s
+      timeout: 15s
+      retries: 10
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 24G  # 🌟 16G -> 24Gに拡張
+    restart: unless-stopped
+    networks:
+      - graphrag_shared_network
+
+#  falkordb:
+#    image: falkordb/falkordb:latest
+#    container_name: graphrag-falkordb
+#    ports:
+#      - "6379:6379"
+#      - "3000:3000"
+#    volumes:
+#      - falkordb-data:/data
+#    healthcheck:
+#      test: ["CMD", "redis-cli", "ping"]
+#      interval: 15s
+#      timeout: 10s
+#      retries: 5
+#    restart: unless-stopped
+#    networks:
+#      - graphrag_shared_network
+
+#  kuzu:
+#    image: kuzudb/api-server:latest
+#    container_name: graphrag-kuzu
+#    ports:
+#      - "8005:8000"
+#    environment:
+#      - MODE=READ_WRITE
+#    volumes:
+#      - kuzu-data:/data
+#      - kuzu-database:/database:rw
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 3
+#    restart: unless-stopped
+#    networks:
+#      - graphrag_shared_network
+
+#  tidb:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile.tidb
+#      args:
+#        - TIDB_VERSION=${TIDB_VERSION:-v8.5.4}
+#    container_name: graphrag-tidb
+#    command: >
+#      /bin/bash -c "
+#      exec /root/.tiup/bin/tiup playground ${TIDB_VERSION:-v8.5.4}
+#        --host 0.0.0.0 --tag devenv --db 1 --kv 1 --pd 1 --tiflash 0 --without-monitor=false --monitor.host 0.0.0.0
+#      "
+#    ports:
+#      - "4000:4000"
+#      - "10080:10080"
+#      - "2379:2379"
+#      - "9090:9090"
+#    volumes:
+#      - tidb-data:/data
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:10080/status"]
+#      interval: 20s
+#      timeout: 10s
+#      retries: 5
+#    restart: unless-stopped
+#    networks:
+#      - graphrag_shared_network
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: graphrag-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      # ▼ 【ローカル保存】現在のWindows側の ./data フォルダに直接保存する設定
+      - ./data/qdrant:/qdrant/storage
+
+      # ▼ 【NAS保存用】NASをネットワークドライブ（例: Z:）として割り当てている場合
+      # - Z:/Ariadne_Backup/qdrant:/qdrant/storage
+
+      # ▼ 【NAS保存用】NASのIPアドレスを直接指定する場合
+      # - //192.168.x.x/shared_folder/qdrant:/qdrant/storage
+
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:6333/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 32G  # 🌟 4G -> 32Gに大幅拡張 (10分間の大量Ingestでもメモリ不足で落ちないようにする)
+    restart: unless-stopped
+    networks:
+      - graphrag_shared_network
+
+  # ========================================
+  # 🔥 Firecrawl（Web Scraping Engine）
+  # ========================================
+  firecrawl:
+    image: ghcr.io/firecrawl/firecrawl:latest
+    container_name: graphrag-firecrawl
+    hostname: graphrag-firecrawl
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - HOST=0.0.0.0
+      - REDIS_URL=redis://graphrag-firecrawl-redis:6379
+      - REDIS_RATE_LIMIT_URL=redis://graphrag-firecrawl-redis:6379
+      - NUQ_DATABASE_URL=postgres://postgres:postgres@graphrag-firecrawl-postgres:5432/postgres
+      - NUQ_RABBITMQ_URL=amqp://guest:guest@graphrag-firecrawl-rabbitmq:5672
+      - USE_DB_AUTHENTICATION=false
+      - NUM_WORKERS=8  # 🌟 2 -> 8 に拡張 (並列スクレイピングの速度向上)
+    depends_on:
+      firecrawl-redis:
+        condition: service_healthy
+      firecrawl-postgres:
+        condition: service_healthy
+      firecrawl-rabbitmq:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 16G  # 🌟 10G -> 16G に拡張
+    restart: unless-stopped
+    networks:
+      - graphrag_shared_network
+
+  # ========================================
+  # Firecrawl専用 依存データベース群 (Healthcheck緩和版)
+  # ========================================
+  firecrawl-redis:
+    image: redis:alpine
+    container_name: graphrag-firecrawl-redis
+    ports:
+      - "16381:6379"
+    volumes:
+      - firecrawl-redis-data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - graphrag_shared_network
+
+  firecrawl-postgres:
+    image: ghcr.io/firecrawl/nuq-postgres:latest
+    container_name: graphrag-firecrawl-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    volumes:
+      - firecrawl-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s  # 🔥 初回構築用に60秒の猶予を与える
+    restart: unless-stopped
+    networks:
+      - graphrag_shared_network
+
+  firecrawl-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: graphrag-firecrawl-rabbitmq
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s  # 🔥 初回構築用に60秒の猶予を与える
+    restart: unless-stopped
+    networks:
+      - graphrag_shared_network
+
+  # ========================================
+  # 🔌 Ariadne MCP Server (Local File Access)
+  # ========================================
+  ariadne-mcp:
+    build:
+      context: ./mcp_server
+    container_name: graphrag-mcp
+    hostname: graphrag-mcp
+    ports:
+      - "8080:8080"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+    volumes:
+      # インフラ側の knowledge フォルダをコンテナ内にマウント
+      - ../ariadne-rag/knowledge:/app/knowledge
+    restart: unless-stopped
+    networks:
+      - graphrag_shared_network
+      - docker_default # ★ここを追加！
+
+# ========================================
+# ボリューム定義
+# ========================================
+volumes:
+  redis-data:
+    name: graphrag_redis_data
+  storage-kg:
+    name: graphrag_storage_kg
+  neo4j-data:
+    name: graphrag_neo4j_data
+  neo4j-logs:
+    name: graphrag_neo4j_logs
+#  falkordb-data:
+#    name: graphrag_falkordb_data
+#  kuzu-data:
+#    name: graphrag_kuzu_data
+#  kuzu-database:
+#    name: graphrag_kuzu_database
+#  tidb-data:
+#    name: graphrag_tidb_data
+  qdrant-data:
+    name: graphrag_qdrant_data
+  firecrawl-redis-data:
+    name: graphrag_firecrawl_redis_data
+  firecrawl-postgres-data:
+    name: graphrag_firecrawl_postgres_data
+  firecrawl-rabbitmq-data:
+    name: graphrag_firecrawl_rabbitmq_data
+
+# ========================================
+# ネットワーク定義
+# ========================================
+networks:
+  graphrag_shared_network:
+    external: true
+    name: graphrag_shared_network
+  docker_default: # ★ここを追加！
+    external: true     # ★ここを追加！

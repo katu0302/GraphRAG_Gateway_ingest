@@ -1,0 +1,24 @@
+*.env*
+config.yaml
+config_save.yaml
+GraphRAG_Neo4j_serve/*.env*
+GraphRAG_Neo4j_serve/config.yaml
+GraphRAG_Neo4j_serve/config_save.yaml
+
+# Neo4jやデータベースの実データ・ログを除外
+data/
+data6/
+data/neo4j/
+neo4j_data/
+*.db
+*.db.*
+logs/
+*.log
+
+.venv/
+venv/
+
+knowledge/
+output/
+storage_kg/
+statistics/

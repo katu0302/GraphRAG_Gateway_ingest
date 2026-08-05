@@ -1,0 +1,102 @@
+# version: '3.8'
+
+# ========================================
+# 登録処理層
+# Infrastructureの共通リソースを使用
+# ========================================
+
+services:
+  # ========================================
+  # アプリケーションサービス
+  # ========================================
+  graphrag-ingest:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BUILD_ENV=${BUILD_ENV:-production}
+    command: python -u GraphRAG7_Store_ingest.py
+    container_name: graphrag-ingest
+    hostname: graphrag-ingest
+    restart: "no"  # 登録処理は1回で終了
+    env_file:
+      - .env
+    environment:
+      # Graph Store Type（動的切り替え）
+      - GRAPH_STORE_TYPE=${GRAPH_STORE_TYPE:-neo4j}
+
+      # Neo4j設定（infrastructureのNeo4jに接続）
+      - NEO4J_URL=bolt://graphrag-neo4j:7687
+      - NEO4J_USER=${NEO4J_USER:-neo4j}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-p@ssw0rd}
+      - NEO4J_DATABASE=${NEO4J_DATABASE:-neo4j}
+
+      # FalkorDB設定
+#      - FALKORDB_URL=redis://graphrag-falkordb:6379
+#      - FALKORDB_GRAPH_NAME=${FALKORDB_GRAPH_NAME:-knowledge_graph}
+
+      # Kuzu設定
+#      - KUZU_DB_PATH=/app/storage_kg/kuzu_db
+
+      # TiDB設定
+#      - TIDB_HOST=graphrag-tidb
+#      - TIDB_PORT=4000
+#      - TIDB_USER=${TIDB_USER:-root}
+#      - TIDB_PASSWORD=${TIDB_PASSWORD:-}
+#      - TIDB_DATABASE=${TIDB_DATABASE:-graphrag}
+#      - TIDB_TABLE_NAME=${TIDB_TABLE_NAME:-knowledge_graph}
+
+      # 共通設定
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PYTHONUNBUFFERED=1
+      - PIP_NO_CACHE_DIR=1
+      - KNOWLEDGE_GRAPH=${KNOWLEDGE_GRAPH:-default}
+      - QUERY_TIMEOUT=160
+      - AUTO_PROCESS=true
+      - DEBUG_MODE=false
+      - PROGRESS_UPDATE=true
+      - ENABLE_FICTIONAL_DETECTION=false
+      - TZ=Asia/Tokyo
+      - CSV_OUTPUT_DIR=/app/output
+      - SHOW_PROMPT=false
+      - LOG_LEVEL=WARNING
+      - LOAD_FLD=${LOAD_FLD:-data}
+    volumes:
+      - ./src:/app/src:ro
+      - ./${LOAD_FLD:-data}:/app/data:ro  # 読み取り専用
+      - ./output:/app/output
+      - ./logs:/app/logs
+      - storage-kg:/app/storage_kg  # 共有ストレージ
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config.yaml:/app/config.yaml
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+    networks:
+      - graphrag-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+        compress: "true"
+
+# ========================================
+# ボリューム定義（外部参照）
+# ========================================
+volumes:
+  storage-kg:
+    external: true
+    name: graphrag_storage_kg
+
+# ========================================
+# ネットワーク定義（外部参照）
+# ========================================
+networks:
+  graphrag-network:
+    external: true
+    name: graphrag_shared_network

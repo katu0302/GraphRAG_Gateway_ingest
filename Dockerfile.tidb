@@ -1,0 +1,62 @@
+FROM ubuntu:22.04
+
+# タイムゾーン設定（対話的インストールを回避）
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Tokyo
+
+# 基本パッケージのインストール
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    ca-certificates \
+    mysql-client \
+    netcat \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# TiUPのインストール（最新の安全な方法）
+RUN curl --proto '=https' --tlsv1.2 -sSf https://tiup-mirrors.pingcap.com/install.sh | sh
+
+# 環境変数の設定
+ENV PATH="/root/.tiup/bin:${PATH}"
+# ✅ 最新の安定版 LTS バージョン（v8.5系）
+ENV TIDB_VERSION=v8.5.4
+
+# TiUP のアップデート
+RUN /root/.tiup/bin/tiup update --self
+
+# TiDB コンポーネントのインストール（事前ダウンロードで起動高速化）
+RUN /root/.tiup/bin/tiup install \
+    tidb:${TIDB_VERSION} \
+    tikv:${TIDB_VERSION} \
+    pd:${TIDB_VERSION} \
+    prometheus \
+    grafana
+
+# ヘルスチェック用スクリプト
+RUN echo '#!/bin/bash\ncurl -sf http://localhost:10080/status || exit 1' > /healthcheck.sh \
+    && chmod +x /healthcheck.sh
+
+# 作業ディレクトリ
+WORKDIR /data
+
+# ポートの公開
+EXPOSE 4000 10080 2379 3000 9090
+
+# デフォルトコマンド（改善版）
+CMD ["/bin/bash", "-c", "\
+    echo 'Starting TiDB Playground ${TIDB_VERSION}...' && \
+    exec /root/.tiup/bin/tiup playground ${TIDB_VERSION} \
+        --host 0.0.0.0 \
+        --tag devenv \
+        --db 1 \
+        --kv 1 \
+        --pd 1 \
+        --tiflash 0 \
+        --without-monitor=false \
+        --monitor.host 0.0.0.0 \
+"]
+
+# ヘルスチェック
+HEALTHCHECK --interval=20s --timeout=10s --retries=5 --start-period=60s \
+    CMD /healthcheck.sh

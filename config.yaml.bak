@@ -1,0 +1,119 @@
+# ingest用
+# ========================================
+# Graph Storage 設定
+# ========================================
+GRAPH_STORE_TYPE: neo4j #
+# neo4j
+# falkordb
+# kuzu
+# tidb
+# simple
+GRAPH_STORE_TYPE: neo4j
+# ----------------------------------------
+# Neo4j 設定
+# ----------------------------------------
+GRAPH_STORE_TYPE: neo4j
+GRAPH_STORE_TYPE: neo4j
+GRAPH_STORE_TYPE: neo4j
+GRAPH_STORE_TYPE: neo4j
+# ----------------------------------------
+# FalkorDB 設定(Redis ベース)
+# ----------------------------------------
+GRAPH_STORE_TYPE: neo4j
+GRAPH_STORE_TYPE: neo4j
+# ----------------------------------------
+# Kuzu 設定(組み込みDB)
+# ----------------------------------------
+GRAPH_STORE_TYPE: neo4j
+# ----------------------------------------
+# TiDB 設定(SQL + グラフハイブリッド)
+# ----------------------------------------
+GRAPH_STORE_TYPE: neo4j
+GRAPH_STORE_TYPE: neo4j
+GRAPH_STORE_TYPE: neo4j
+GRAPH_STORE_TYPE: neo4j
+GRAPH_STORE_TYPE: neo4j
+GRAPH_STORE_TYPE: neo4j
+# ----------------------------------------
+# SimpleGraphStore(ファイルベース)
+# ----------------------------------------
+GRAPH_STORE_TYPE: neo4j
+# ----------------------------------------
+# chunk_size, chunk_overlap
+# ----------------------------------------
+#技術文書用
+#chunk_size=3072, chunk_overlap=300
+#報告書用
+#chunk_size=2048, chunk_overlap=200
+#FAQ用
+#chunk_size=2048, chunk_overlap=200
+GRAPH_STORE_TYPE: neo4j
+GRAPH_STORE_TYPE: neo4j
+#OpenAI
+GRAPH_STORE_TYPE: neo4j
+#OPENAI_LLM="gpt-4o-mini"
+GRAPH_STORE_TYPE: neo4j
+#OPENAI_LLM="gpt-5-mini"
+GRAPH_STORE_TYPE: neo4j
+#OPENAI_EMBED="text-embedding-3-large"
+GRAPH_STORE_TYPE: neo4j #
+# low
+# medium
+# high
+GRAPH_STORE_TYPE: neo4j
+#LlamaParse
+#API_KEY
+GRAPH_STORE_TYPE: neo4j
+#Model                             Model string
+#------------------------------------------------------
+#Open AI Gpt4o (Default)           openai-gpt4o
+#Open AI Gpt4o Mini                openai-gpt-4o-mini
+#OpenAI GPT-4.1 Nano               openai-gpt-4-1-nano
+#OpenAI GPT-4.1 Mini               openai-gpt-4-1-mini
+#OpenAI GPT-4.1                    openai-gpt-4-1
+#Sonnet 3.5 (deprecated)           anthropic-sonnet-3.5
+#Sonnet 3.7                        anthropic-sonnet-3.7
+#Sonnet 4.0                        anthropic-sonnet-4.0
+#Sonnet 4.5 (Preview)              anthropic-sonnet-4.5
+#Haiku 4.5 (Preview)               anthropic-haiku-4.5
+#Gemini 2.0 Flash                  gemini-2.0-flash
+#Gemini 2.5 Flash                  gemini-2.5-flash
+#Gemini 2.5 Pro                    gemini-2.5-pro
+#Gemini 1.5 Flash (discountinued)  gemini-1.5-flash
+#Gemini 1.5 Pro (discountinued)    gemini-1.5-pro
+#Custom Azure Model                custom-azure-model
+GRAPH_STORE_TYPE: neo4j
+GRAPH_STORE_TYPE: neo4j #
+GRAPH_STORE_TYPE: neo4j #
+GRAPH_STORE_TYPE: neo4j #
+GRAPH_STORE_TYPE: neo4j
+#datadir
+#data1(segmented_rag_orchestrator)
+#data2(segmented_rag_orchestrator)
+#data3(segmented_rag_orchestrator)
+#data4(segmented_rag_orchestrator)
+#data5(segmented_rag_orchestrator)
+#data6(segmented_rag_orchestrator)
+GRAPH_STORE_TYPE: neo4j
+#ChatBot Port
+GRAPH_STORE_TYPE: neo4j
+#KnowledgeGraph
+GRAPH_STORE_TYPE: neo4j
+# Redis 設定
+GRAPH_STORE_TYPE: neo4j
+GRAPH_STORE_TYPE: neo4j
+# Redis パスワード
+GRAPH_STORE_TYPE: neo4j
+GRAPH_STORE_TYPE: neo4j #
+GRAPH_STORE_TYPE: neo4j
+GRAPH_STORE_TYPE: neo4j #
+GRAPH_STORE_TYPE: neo4j
+# ========================================
+# Graph Store リトライ設定
+# ========================================
+# 最大リトライ回数
+GRAPH_STORE_TYPE: neo4j
+# 初回リトライ待機時間(秒)
+GRAPH_STORE_TYPE: neo4j
+# バックオフ係数(指数バックオフ倍率)
+GRAPH_STORE_TYPE: neo4j
