@@ -52,7 +52,7 @@ exit /b
 :EXECUTE
 set TITLE_MSG=Tower of GraphRAG - System Shutdown Process
 set STOPPING_MSG=%MSG_SUFFIX%
-set STOP_PY= [1/3] Terminating Control Tower (Python)...
+set STOP_PY= [1/3] Terminating Control Tower, API Servers & Gateways (Python)...
 set STOP_DOCKER= [2/3] Processing Infrastructure (Docker) using '%DOCKER_CMD%'...
 set STOP_DIFY= [3/3] Processing Dify Infrastructure (Docker) using '%DOCKER_CMD%'...
 set COMPLETE_MSG=COMPLETE: %COMPLETE_SUFFIX%
@@ -67,24 +67,33 @@ echo ================================================
 echo    %STOPPING_MSG%
 echo ================================================
 
-:: --- [1/3] Terminate Python Processes ---
+:: --- [1/3] Terminate Python & API Processes ---
 echo %STOP_PY%
 
 :: 1. 独立して立ち上げたコマンドプロンプト画面をタイトルで狙い撃ちして終了 (/T で子プロセスごとキル)
+:: 🌟 追加: Dify Config API Server の枠を確実に消す
+taskkill /F /FI "WINDOWTITLE eq Dify Config API Server*" /T >nul 2>&1
 taskkill /F /FI "WINDOWTITLE eq Kuzu Approval API Server*" /T >nul 2>&1
 taskkill /F /FI "WINDOWTITLE eq Ariadne API (Dify Gateway)*" /T >nul 2>&1
 taskkill /F /FI "WINDOWTITLE eq Ariadne Night Crawler*" /T >nul 2>&1
+taskkill /F /FI "WINDOWTITLE eq *Dify*API*" /T >nul 2>&1
+taskkill /F /FI "WINDOWTITLE eq *Key*Server*" /T >nul 2>&1
 
-:: 2. ポートを占有しているプロセスを終了 (8501: UI, 8001: Dify API, 8002: Kuzu API)
+:: 🌟 追加: APIキーサーバーや各種サーバーが起動しているウィンドウのタイトルパターンを追加で一網打尽にする
+taskkill /F /FI "WINDOWTITLE eq *API Server*" /T >nul 2>&1
+taskkill /F /FI "WINDOWTITLE eq *Gateway*" /T >nul 2>&1
+
+:: 2. ポートを占有しているプロセスを確実に終了 (8501: UI, 8000, 8001, 8002: 各種APIサーバー・ゲートウェイ, 7860: チャット等)
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8501 "') do taskkill /F /PID %%a /T >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8000 "') do taskkill /F /PID %%a /T >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8001 "') do taskkill /F /PID %%a /T >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8002 "') do taskkill /F /PID %%a /T >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":7860 "') do taskkill /F /PID %%a /T >nul 2>&1
 
-:: 3. バックグラウンドに残ったPythonプロセスをクリーンアップ (ariadne-rag フォルダも対象に追加)
+:: 3. バックグラウンドに残ったPythonプロセスをクリーンアップ (ariadne-rag フォルダや関連プロセスを対象)
 powershell -Command "Get-Process python -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*GraphRAG*' -or $_.Path -like '*ariadne-rag*' } | Stop-Process -Force" >nul 2>&1
 
-echo    - Ariadne UI and background processes terminated.
+echo    - Ariadne UI, API Servers (Ports 8000, 8001, 8002) and background processes terminated.
 
 :: --- [2/3] Process Docker Infrastructure ---
 echo %STOP_DOCKER%
@@ -126,6 +135,7 @@ echo    - [WARNING] Dify Infrastructure configuration file not found: %DIFY_DIR%
 
 :: --- Finish ---
 :END_PROCESS
+
 echo.
 echo ================================================
 echo    %COMPLETE_MSG%
