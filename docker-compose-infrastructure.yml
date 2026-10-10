@@ -285,6 +285,32 @@ services:
       - graphrag_shared_network
       - docker_default # ★ここを追加！
 
+  # ========================================
+  # 🛡️ ローカル高精度ドキュメント解析基盤 (Docling)
+  # ========================================
+  docling-parser:
+    # 🌟 公式のDocling Serveイメージに変更
+    image: quay.io/docling-project/docling-serve:latest
+    container_name: graphrag-docling
+    hostname: graphrag-docling
+    ports:
+      - "5001:5001"  # 🌟 公式ポートの 5001 に変更
+    environment:
+      - WORKERS=2
+      - TIMEOUT=120
+      # DoclingのAIモデル（DocLayNet等）のダウンロード先キャッシュ
+      - HF_HOME=/app/models
+    volumes:
+      # 初回起動時にダウンロードされる重いAIモデルを永続化（毎回DLするのを防ぐため）
+      - docling-models:/app/models
+    deploy:
+      resources:
+        limits:
+          memory: 8G  # PDFのレイアウト推論にメモリを消費するため8GBを割り当て
+    restart: unless-stopped
+    networks:
+      - graphrag_shared_network
+
 # ========================================
 # ボリューム定義
 # ========================================
@@ -313,6 +339,8 @@ volumes:
     name: graphrag_firecrawl_postgres_data
   firecrawl-rabbitmq-data:
     name: graphrag_firecrawl_rabbitmq_data
+  docling-models:
+    name: graphrag_docling_models
 
 # ========================================
 # ネットワーク定義

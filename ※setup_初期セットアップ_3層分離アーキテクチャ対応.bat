@@ -152,7 +152,6 @@ if not exist "statistics" mkdir "statistics"
 echo [OK] %CD%\storage_kg
 echo [OK] %CD%\statistics
 
-REM 🌟 追加: [5] ジャンクションリンクの自動生成処理
 echo [5] UI側との記憶フォルダ共有 (ジャンクションリンク) を設定中...
 set "SERVE_DIR=..\GraphRAG_Gateway_serve"
 
@@ -241,12 +240,32 @@ if errorlevel 1 (
     echo [OK] Firecrawl API の完全覚醒を確認しました (Port: 3002)。
 )
 
-echo [10] 環境設定ファイルの整合性確認...
+REM 🌟 今回追加：Doclingの起動確認
+echo [10] ローカル解析API (Docling) の稼働確認...
+set /a DOC_WAIT_COUNT=0
+set /a DOC_MAX_WAIT=20
+:wait_docling
+timeout /t 3 /nobreak >nul
+set /a DOC_WAIT_COUNT+=1
+docker inspect graphrag-docling --format="{{.State.Status}}" 2>nul | findstr "running" >nul 2>&1
+if errorlevel 1 (
+    if !DOC_WAIT_COUNT! LSS %DOC_MAX_WAIT% (
+        echo    Docling 起動待機中... (!DOC_WAIT_COUNT!/%DOC_MAX_WAIT%)
+        goto wait_docling
+    ) else (
+        echo [警告] Doclingコンテナの応答確認にタイムアウトしました。
+    )
+) else (
+    echo [OK] Docling API コンテナが正常に稼働しています (Port: 5001)。
+    echo      ※初回解析時は背後でAIモデルのダウンロードが行われるため、少し時間がかかる場合があります。
+)
+
+echo [11] 環境設定ファイルの整合性確認...
 if not exist "%ENV_PATH%" (
     echo GRAPH_STORE_TYPE=neo4j > "%ENV_PATH%"
 )
 
-echo [11] データベース連携用Pythonパッケージのインストール...
+echo [12] データベース連携用Pythonパッケージのインストール...
 REM pip install falkordb kuzu pymysql --quiet
 pip install kuzu --quiet
 echo [OK] パッケージのインストール完了
