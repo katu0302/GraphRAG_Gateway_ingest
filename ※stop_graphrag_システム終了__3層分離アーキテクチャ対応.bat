@@ -71,20 +71,21 @@ echo ================================================
 echo %STOP_PY%
 
 :: 1. 独立して立ち上げたコマンドプロンプト画面をタイトルで狙い撃ちして終了 (/T で子プロセスごとキル)
-:: 🌟 追加: Dify Config API Server の枠を確実に消す
 taskkill /F /FI "WINDOWTITLE eq Dify Config API Server*" /T >nul 2>&1
 taskkill /F /FI "WINDOWTITLE eq Kuzu Approval API Server*" /T >nul 2>&1
 taskkill /F /FI "WINDOWTITLE eq Ariadne API (Dify Gateway)*" /T >nul 2>&1
 taskkill /F /FI "WINDOWTITLE eq Ariadne Night Crawler*" /T >nul 2>&1
+:: 🌟 追加: NiceGUI Deep Search Console のウィンドウを確実に終了
+taskkill /F /FI "WINDOWTITLE eq Ariadne Deep Search Console*" /T >nul 2>&1
+
 taskkill /F /FI "WINDOWTITLE eq *Dify*API*" /T >nul 2>&1
 taskkill /F /FI "WINDOWTITLE eq *Key*Server*" /T >nul 2>&1
-
-:: 🌟 追加: APIキーサーバーや各種サーバーが起動しているウィンドウのタイトルパターンを追加で一網打尽にする
 taskkill /F /FI "WINDOWTITLE eq *API Server*" /T >nul 2>&1
 taskkill /F /FI "WINDOWTITLE eq *Gateway*" /T >nul 2>&1
 
-:: 2. ポートを占有しているプロセスを確実に終了 (8501: UI, 8000, 8001, 8002: 各種APIサーバー・ゲートウェイ, 7860: チャット等)
+:: 2. ポートを占有しているプロセスを確実に終了 (8501: UI, 8080: NiceGUIコンソール, 8000~8002: 各種APIサーバー)
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8501 "') do taskkill /F /PID %%a /T >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8080 "') do taskkill /F /PID %%a /T >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8000 "') do taskkill /F /PID %%a /T >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8001 "') do taskkill /F /PID %%a /T >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8002 "') do taskkill /F /PID %%a /T >nul 2>&1
@@ -93,7 +94,8 @@ for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":7860 "') do taskkill /F /PI
 :: 3. バックグラウンドに残ったPythonプロセスをクリーンアップ (ariadne-rag フォルダや関連プロセスを対象)
 powershell -Command "Get-Process python -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*GraphRAG*' -or $_.Path -like '*ariadne-rag*' } | Stop-Process -Force" >nul 2>&1
 
-echo    - Ariadne UI, API Servers (Ports 8000, 8001, 8002) and background processes terminated.
+echo    Ariadne UI, Deep Search Console (Port 8080), API Servers and background processes terminated.
+
 
 :: --- [2/3] Process Docker Infrastructure ---
 echo %STOP_DOCKER%
@@ -109,11 +111,12 @@ if "%TARGET_DIR%"=="" goto INFRA_ERROR
 pushd "%TARGET_DIR%"
 docker compose -f docker-compose-infrastructure.yml %DOCKER_CMD%
 popd
-echo    - Infrastructure processed.
+echo    Infrastructure processed.
+
 goto DIFY_START
 
 :INFRA_ERROR
-echo    - [WARNING] Infrastructure configuration file not found.
+echo    [WARNING] Infrastructure configuration file not found.
 echo      1: %REL_DIR%\docker-compose-infrastructure.yml
 echo      2: %ABS_DIR%\docker-compose-infrastructure.yml
 
@@ -127,11 +130,13 @@ if not exist "%DIFY_DIR%\docker-compose.yaml" if not exist "%DIFY_DIR%\docker-co
 pushd "%DIFY_DIR%"
 docker compose %DOCKER_CMD%
 popd
-echo    - Dify Infrastructure processed.
+echo    Dify Infrastructure processed.
+
 goto END_PROCESS
 
 :DIFY_ERROR
-echo    - [WARNING] Dify Infrastructure configuration file not found: %DIFY_DIR%
+echo    [WARNING] Dify Infrastructure configuration file not found:
+echo    %DIFY_DIR%
 
 :: --- Finish ---
 :END_PROCESS
