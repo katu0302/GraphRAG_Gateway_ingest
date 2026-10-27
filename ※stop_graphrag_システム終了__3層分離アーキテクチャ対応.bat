@@ -50,12 +50,12 @@ exit /b
 :: 1. Execution Main Process
 :: ================================================
 :EXECUTE
-set TITLE_MSG=Tower of GraphRAG - System Shutdown Process
-set STOPPING_MSG=%MSG_SUFFIX%
-set STOP_PY= [1/3] Terminating Control Tower, API Servers & Gateways (Python)...
-set STOP_DOCKER= [2/3] Processing Infrastructure (Docker) using '%DOCKER_CMD%'...
-set STOP_DIFY= [3/3] Processing Dify Infrastructure (Docker) using '%DOCKER_CMD%'...
-set COMPLETE_MSG=COMPLETE: %COMPLETE_SUFFIX%
+set "TITLE_MSG=Tower of GraphRAG - System Shutdown Process"
+set "STOPPING_MSG=%MSG_SUFFIX%"
+set "STOP_PY=[1/3] Terminating Control Tower, API Servers & Gateways (Python)..."
+set "STOP_DOCKER=[2/3] Processing Infrastructure (Docker) using '%DOCKER_CMD%'..."
+set "STOP_DIFY=[3/3] Processing Dify Infrastructure (Docker) using '%DOCKER_CMD%'..."
+set "COMPLETE_MSG=COMPLETE: %COMPLETE_SUFFIX%"
 
 cls
 echo ================================================
@@ -70,12 +70,10 @@ echo ================================================
 :: --- [1/3] Terminate Python & API Processes ---
 echo %STOP_PY%
 
-:: 1. 独立して立ち上げたコマンドプロンプト画面をタイトルで狙い撃ちして終了 (/T で子プロセスごとキル)
 taskkill /F /FI "WINDOWTITLE eq Dify Config API Server*" /T >nul 2>&1
 taskkill /F /FI "WINDOWTITLE eq Kuzu Approval API Server*" /T >nul 2>&1
 taskkill /F /FI "WINDOWTITLE eq Ariadne API (Dify Gateway)*" /T >nul 2>&1
 taskkill /F /FI "WINDOWTITLE eq Ariadne Night Crawler*" /T >nul 2>&1
-:: 🌟 追加: NiceGUI Deep Search Console のウィンドウを確実に終了
 taskkill /F /FI "WINDOWTITLE eq Ariadne Deep Search Console*" /T >nul 2>&1
 
 taskkill /F /FI "WINDOWTITLE eq *Dify*API*" /T >nul 2>&1
@@ -83,60 +81,60 @@ taskkill /F /FI "WINDOWTITLE eq *Key*Server*" /T >nul 2>&1
 taskkill /F /FI "WINDOWTITLE eq *API Server*" /T >nul 2>&1
 taskkill /F /FI "WINDOWTITLE eq *Gateway*" /T >nul 2>&1
 
-:: 2. ポートを占有しているプロセスを確実に終了 (8501: UI, 8080: NiceGUIコンソール, 8000~8002: 各種APIサーバー)
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8501 "') do taskkill /F /PID %%a /T >nul 2>&1
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8080 "') do taskkill /F /PID %%a /T >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8091 "') do taskkill /F /PID %%a /T >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8000 "') do taskkill /F /PID %%a /T >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8001 "') do taskkill /F /PID %%a /T >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8002 "') do taskkill /F /PID %%a /T >nul 2>&1
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":7860 "') do taskkill /F /PID %%a /T >nul 2>&1
 
-:: 3. バックグラウンドに残ったPythonプロセスをクリーンアップ (ariadne-rag フォルダや関連プロセスを対象)
 powershell -Command "Get-Process python -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*GraphRAG*' -or $_.Path -like '*ariadne-rag*' } | Stop-Process -Force" >nul 2>&1
 
-echo    Ariadne UI, Deep Search Console (Port 8080), API Servers and background processes terminated.
-
+echo    Ariadne UI, Deep Search Console (Port 8091), API Servers and background processes terminated.
+echo.
 
 :: --- [2/3] Process Docker Infrastructure ---
 echo %STOP_DOCKER%
-set "TARGET_DIR="
-set "REL_DIR=%~dp0..\GraphRAG_Gateway_ingest"
-set "ABS_DIR=C:\PycharmProjects\GraphRAG_Gateway_ingest"
 
-if exist "%REL_DIR%\docker-compose-infrastructure.yml" set "TARGET_DIR=%REL_DIR%"
-if exist "%ABS_DIR%\docker-compose-infrastructure.yml" set "TARGET_DIR=%ABS_DIR%"
+:: 🌟 バッチファイルの場所を基準に正しくインフラフォルダを特定する
+set "SERVE_DIR=%~dp0"
+if "%SERVE_DIR:~-1%"=="\" set "SERVE_DIR=%SERVE_DIR:~0,-1%"
+set "TARGET_DIR=%SERVE_DIR%\..\GraphRAG_Gateway_ingest"
 
-if "%TARGET_DIR%"=="" goto INFRA_ERROR
-
-pushd "%TARGET_DIR%"
-docker compose -f docker-compose-infrastructure.yml %DOCKER_CMD%
-popd
-echo    Infrastructure processed.
-
-goto DIFY_START
-
-:INFRA_ERROR
-echo    [WARNING] Infrastructure configuration file not found.
-echo      1: %REL_DIR%\docker-compose-infrastructure.yml
-echo      2: %ABS_DIR%\docker-compose-infrastructure.yml
+if exist "%TARGET_DIR%\docker-compose-infrastructure.yml" (
+    echo    Target Directory: %TARGET_DIR%
+    pushd "%TARGET_DIR%"
+    docker compose -f docker-compose-infrastructure.yml %DOCKER_CMD%
+    popd
+    echo    [OK] Infrastructure processed.
+) else (
+    echo    [WARNING] docker-compose-infrastructure.yml not found in:
+    echo    %TARGET_DIR%
+)
+echo.
 
 :: --- [3/3] Process Dify Infrastructure ---
-:DIFY_START
 echo %STOP_DIFY%
-set "DIFY_DIR=C:\PycharmProjects\dify\docker"
+set "DIFY_DIR=%SERVE_DIR%\..\dify\docker"
 
-if not exist "%DIFY_DIR%\docker-compose.yaml" if not exist "%DIFY_DIR%\docker-compose.yml" goto DIFY_ERROR
+if exist "%DIFY_DIR%\docker-compose.yaml" (
+    set "DIFY_COMPOSE_FILE=docker-compose.yaml"
+) else if exist "%DIFY_DIR%\docker-compose.yml" (
+    set "DIFY_COMPOSE_FILE=docker-compose.yml"
+) else (
+    set "DIFY_COMPOSE_FILE="
+)
 
-pushd "%DIFY_DIR%"
-docker compose %DOCKER_CMD%
-popd
-echo    Dify Infrastructure processed.
-
-goto END_PROCESS
-
-:DIFY_ERROR
-echo    [WARNING] Dify Infrastructure configuration file not found:
-echo    %DIFY_DIR%
+if not "%DIFY_COMPOSE_FILE%"=="" (
+    echo    Target Directory: %DIFY_DIR%
+    pushd "%DIFY_DIR%"
+    docker compose -f %DIFY_COMPOSE_FILE% %DOCKER_CMD%
+    popd
+    echo    [OK] Dify Infrastructure processed.
+) else (
+    echo    [WARNING] Dify docker-compose file not found in:
+    echo    %DIFY_DIR%
+)
 
 :: --- Finish ---
 :END_PROCESS
