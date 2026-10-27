@@ -52,7 +52,7 @@ exit /b
 :EXECUTE
 set "TITLE_MSG=Tower of GraphRAG - System Shutdown Process"
 set "STOPPING_MSG=%MSG_SUFFIX%"
-set "STOP_PY=[1/3] Terminating Control Tower, API Servers & Gateways (Python)..."
+set "STOP_PY=[1/3] Terminating Control Tower, API Servers and Gateways (Python)..."
 set "STOP_DOCKER=[2/3] Processing Infrastructure (Docker) using '%DOCKER_CMD%'..."
 set "STOP_DIFY=[3/3] Processing Dify Infrastructure (Docker) using '%DOCKER_CMD%'..."
 set "COMPLETE_MSG=COMPLETE: %COMPLETE_SUFFIX%"
@@ -67,8 +67,11 @@ echo ================================================
 echo    %STOPPING_MSG%
 echo ================================================
 
-:: --- [1/3] Terminate Python & API Processes ---
+:: --- [1/3] Terminate Python & API Processes & Browsers ---
 echo %STOP_PY%
+
+:: 🌟 追加: 開いているブラウザ（ChromeやEdgeなど）の該当タブやセッションを綺麗に閉じる
+taskkill /F /FI "WINDOWTITLE eq *Ariadne*" >nul 2>&1
 
 taskkill /F /FI "WINDOWTITLE eq Dify Config API Server*" /T >nul 2>&1
 taskkill /F /FI "WINDOWTITLE eq Kuzu Approval API Server*" /T >nul 2>&1
